@@ -646,10 +646,13 @@ function initFirebase(){
   try{ firebase.initializeApp(cfg); }catch(e){ if(!/already exists/.test(String(e))){ showGate("setup","設定が正しくありません:"+e.message); return; } }
   const auth=firebase.auth(), fs=firebase.firestore();
   try{ fs.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
-  auth.getRedirectResult().catch(e=>showGate("login",loginErr(e)));
+  showGate("wait");
+  try{ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{}); }catch(e){}
+  let authKnown=false, redirErr="";
+  auth.getRedirectResult().catch(e=>{ redirErr=loginErr(e); if(authKnown&&!auth.currentUser) showGate("login",redirErr); });
   auth.onAuthStateChanged(u=>{
-    FB_USER=u;
-    if(!u){ backend="local"; if(unsub) try{unsub();}catch(e){} col=null; setSync(); showGate("login"); return; }
+    FB_USER=u; authKnown=true;
+    if(!u){ backend="local"; if(unsub) try{unsub();}catch(e){} col=null; setSync(); showGate("login",redirErr); return; }
     showGate(null);
     const c=fs.collection("users").doc(u.uid).collection("docs");
     attachCol({
@@ -659,12 +662,13 @@ function initFirebase(){
     render();
   });
 }
-function loginErr(e){ const c=e&&e.code||""; if(c.includes("unauthorized-domain")) return "このURLがFirebaseのログイン許可ドメインに登録されていません(Authentication → 設定 → 承認済みドメイン)。"; if(c.includes("popup")) return ""; return e&&e.message||""; }
+function loginErr(e){ const c=e&&e.code||""; if(c.includes("unauthorized-domain")) return "このURLがFirebaseのログイン許可ドメインに登録されていません(Authentication → 設定 → 承認済みドメイン)。"; if(c.includes("popup-closed")||c.includes("cancelled-popup")) return ""; return (c?"["+c+"] ":"")+(e&&e.message||""); }
 function showGate(mode,msg){
   let g=document.getElementById("gate");
   if(!mode){ if(g) g.hidden=true; return; }
   if(!g){ g=document.createElement("div"); g.id="gate"; document.body.appendChild(g); }
   g.hidden=false;
+  if(mode==="wait"){ g.innerHTML=`<div class="gatein stack" style="align-items:center;text-align:center"><span class="eyebrow">Loading</span><p class="small muted">読み込み中…</p></div>`; return; }
   g.innerHTML=mode==="setup"?`<div class="gatein stack"><span class="en" style="font-size:1.6rem">Welcome</span><h2>最初の設定</h2>
       <p class="small">Firebaseの「ウェブアプリの設定(firebaseConfig)」を貼り付けてください。この端末に保存されます。</p>
       <textarea id="fbCfg" style="min-height:150px" placeholder='{"apiKey":"...","authDomain":"...","projectId":"..."}'></textarea>
@@ -1860,8 +1864,8 @@ function uid(p){ return p+Date.now().toString(36)+Math.random().toString(36).sli
 document.addEventListener("click",e=>{
   const b=e.target.closest("button,[data-reveal]"); if(!b) return;
   const d=b.dataset;
-  if(d.act==="fblogin"){ const prov=new firebase.auth.GoogleAuthProvider(); const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);
-    (ios?firebase.auth().signInWithRedirect(prov):firebase.auth().signInWithPopup(prov).catch(e=>{ if(String(e.code).includes("popup")) return firebase.auth().signInWithRedirect(prov); throw e; })).catch(e=>showGate("login",loginErr(e))); return; }
+  if(d.act==="fblogin"){ const prov=new firebase.auth.GoogleAuthProvider(); prov.setCustomParameters({prompt:"select_account"});
+    firebase.auth().signInWithPopup(prov).catch(e=>{ const c=String(e.code||""); if(c.includes("popup-blocked")||c.includes("operation-not-supported")) return firebase.auth().signInWithRedirect(prov); if(c.includes("popup-closed")||c.includes("cancelled-popup")) return; throw e; }).catch(e=>showGate("login",loginErr(e))); return; }
   if(d.act==="fblogout"){ firebase.auth().signOut(); return; }
   if(d.act==="fbcfgsave"){ const c=parseCfg($("#fbCfg").value); if(!c||!c.apiKey||!c.projectId){ showGate("setup","apiKey と projectId を含む設定を貼り付けてください"); return; } try{ localStorage.setItem("takken-fbconfig",JSON.stringify(c)); }catch(e){} location.reload(); return; }
   if(d.act==="exportjson"){ const docs={}; allDocIds().forEach(id=>{ const b=bodyOf(id); if(b) docs[id]=b; }); const blob=new Blob([JSON.stringify({app:"takken-trainer",v:1,at:new Date().toISOString(),docs})],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="takken-backup-"+today()+".json"; document.body.appendChild(a); a.click(); a.remove(); return; }
