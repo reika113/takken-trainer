@@ -381,6 +381,13 @@ details[open]>summary{margin-bottom:4px}
 
 .note-box{border-left:2px solid var(--sakura);padding:8px 14px;background:var(--sakura-soft);border-radius:0 12px 12px 0;font-size:.86rem}
 .empty{padding:34px 16px;text-align:center;color:var(--muted)}
+.lvsum{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;font-size:.86rem;color:var(--muted)}
+.lvsum span{display:inline-flex;gap:4px;align-items:baseline}.lvsum b{font-size:1rem}
+.lv-s{color:#4f78a8}.lv-o{color:var(--leaf)}.lv-u{color:var(--honey)}.lv-x{color:var(--sakura-deep)}.lv-n{color:var(--muted)}
+.lvbtns{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;width:100%;max-width:520px}
+.lvbtns .lvb{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;min-height:64px}
+.lvbtns .lvb b{font-size:1.4rem;line-height:1}.lvbtns .lvb span{font-size:.74rem;color:var(--muted)}
+.lvmk{font-size:1rem}.grid td.lvcell{width:64px;min-width:64px}
 #gate{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
 #gate .gatein{max-width:460px;width:100%;background:var(--sheet);border:1px solid var(--line);border-radius:var(--r);padding:28px 22px}
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 18px;border-radius:999px;font-size:.82rem;z-index:20;opacity:0;transition:opacity .25s;pointer-events:none}
@@ -955,15 +962,18 @@ function viewInsight(){
 }
 
 /* ============ 暗記カード ============ */
-const fc={mode:"learn",group:"すべて",shown:false,cur:null,seen:new Set(),cmp:null,rev:new Set(),quiz:{},checked:false,edit:null,del:null,ai:{busy:false,list:null,err:"",topic:"",group:""}};
+const fc={mode:"learn",group:"すべて",lvf:"all",shown:false,cur:null,seen:new Set(),cmp:null,rev:new Set(),quiz:{},checked:false,edit:null,del:null,ai:{busy:false,list:null,err:"",topic:"",group:""}};
 function allCards(){ const ov=S.cardov||{}; return BUILTIN_CARDS.map(c=>{ const o=ov[c.id]; if(!o) return c; if(o.del) return null; return {...c,...o,edited:true}; }).filter(Boolean).concat(Object.entries(S.mycards).map(([id,c])=>({id,...c}))); }
 function setCard(id,field,val){ if(S.mycards[id]){ S.mycards[id][field]=val; mark("mycards"); return; } const b=BUILTIN_CARDS.find(c=>c.id===id); if(!b) return; const o=S.cardov[id]={...(S.cardov[id]||{})}; o[field]=val; if(["g","q","a","note"].every(k=>o[k]===undefined||o[k]===b[k])&&!o.del) delete S.cardov[id]; mark("cardov"); }
 function groupNames(){ const s=[]; allCards().forEach(c=>{ if(!s.includes(c.g)) s.push(c.g); }); return s; }
-function cardPool(){ return allCards().filter(c=>fc.group==="すべて"||c.g===fc.group); }
+function cardLv(id){ const s=S.cards[id]; return s&&s.lv||""; }
+function lvOk(id){ const f=fc.lvf, l=cardLv(id); if(f==="all") return true; if(f==="none") return !l; return f.includes(l)&&!!l; }
+function cardPool(){ return allCards().filter(c=>(fc.group==="すべて"||c.g===fc.group)&&lvOk(c.id)); }
 function nextCard(){
   const t=today(), pool=cardPool();
   const due=pool.filter(c=>{ const s=S.cards[c.id]; return s&&s.d<=t&&!fc.seen.has(c.id); }).sort((a,b)=>S.cards[a.id].d<S.cards[b.id].d?-1:1);
   if(due.length) return due[0];
+  if(fc.lvf!=="all"&&fc.lvf!=="none") return pool.find(c=>!fc.seen.has(c.id))||null;
   return pool.find(c=>!S.cards[c.id]&&!fc.seen.has(c.id))||null;
 }
 function viewNumbers(){
@@ -971,17 +981,20 @@ function viewNumbers(){
   const learned=cards.filter(c=>S.cards[c.id]&&S.cards[c.id].b>=2).length;
   const dueN=cards.filter(c=>S.cards[c.id]&&S.cards[c.id].d<=t).length;
   const groups=groupNames();
-  const top=`${head("Numbers & Terms","数字・期間の暗記カード",`全${cards.length}枚 ・ 定着 ${learned} ・ 今日の復習 ${dueN}`)}
+  const lvc=k=>cards.filter(c=>cardLv(c.id)===k).length;
+  const top=`${head("Numbers & Terms","数字・期間の暗記カード",`全${cards.length}枚 ・ 今日の復習 ${dueN}`)}
+  <div class="lvsum">${[["s","◎"],["o","○"],["u","△"],["x","×"]].map(([k,m])=>`<span class="lv-${k}"><b>${m}</b>${lvc(k)}</span>`).join("")}<span class="lv-n"><b>未</b>${cards.length-lvc("s")-lvc("o")-lvc("u")-lvc("x")}</span></div>
   <div class="row" style="justify-content:center"><div class="seg" role="group"><button data-fmode="learn" aria-pressed="${fc.mode==="learn"}">覚える</button><button data-fmode="cmp" aria-pressed="${fc.mode==="cmp"}">比べる</button><button data-fmode="edit" aria-pressed="${fc.mode==="edit"}">一覧・編集</button></div></div>`;
   if(fc.mode==="learn"){
     if(!fc.cur||!cardPool().some(c=>c.id===fc.cur.id)){ fc.cur=nextCard(); fc.shown=false; }
     const c=fc.cur;
     const body=c?`<div class="flash">
-      <div class="stack" style="gap:12px;align-items:center"><span class="chip">${esc(c.g)}</span>${c.src!=="builtin"?`<span class="chip ai">${c.src==="ai"?"AI作成":"自作"}</span>`:""}<div class="q">${esc(c.q)}は?</div>
+      <div class="stack" style="gap:12px;align-items:center"><span class="chip">${esc(c.g)}</span>${c.src!=="builtin"?`<span class="chip ai">${c.src==="ai"?"AI作成":"自作"}</span>`:""}<div class="q">${esc(c.q)}は?</div>${cardLv(c.id)?`<span class="small muted">前回 <b class="lvmk lv-${cardLv(c.id)}">${cardLv(c.id)==="o"?"○":MK[cardLv(c.id)]}</b>${S.cards[c.id].ld?" ・ "+md(S.cards[c.id].ld):""}</span>`:""}
       ${fc.shown?`<hr class="leaf" style="width:40%"><div class="a">${esc(c.a)}</div>${c.note?`<div class="note">${esc(c.note)}</div>`:""}`:""}</div>
-      <div class="row" style="justify-content:center">${fc.shown?`<button class="btn" data-fgrade="ng">まだ</button><button class="btn primary" data-fgrade="ok">覚えた</button>`:`<button class="btn primary" data-act="fshow">答えを見る</button>`}</div>
-    </div>`:`<div class="sheet empty stack" style="align-items:center"><span class="en" style="font-size:1.5rem">All caught up.</span><p class="small">このグループの今日の分は終わりました。「まだ」は明日、「覚えた」は間隔を空けて出てきます。</p><button class="btn" data-act="freset">最初からもう一度</button></div>`;
-    return `${top}<div class="pills center">${["すべて",...groups].map(g=>`<button data-fgroup="${esc(g)}" aria-pressed="${fc.group===g}">${esc(g)}</button>`).join("")}</div>${body}
+      <div class="row" style="justify-content:center">${fc.shown?`<div class="lvbtns">${[["s","◎","完璧"],["o","○","覚えた"],["u","△","あやふや"],["x","×","まだ"]].map(([k,m,l])=>`<button class="btn lvb lv-${k}" data-fgrade="${k}"><b>${m}</b><span>${l}</span></button>`).join("")}</div>`:`<button class="btn primary" data-act="fshow">答えを見る</button>`}</div>
+    </div>`:`<div class="sheet empty stack" style="align-items:center"><span class="en" style="font-size:1.5rem">All caught up.</span><p class="small">この条件の今日の分は終わりました。×は明日、△は2日後、◯・◎は間隔を空けて出てきます。</p><button class="btn" data-act="freset">最初からもう一度</button></div>`;
+    return `${top}<div class="pills center">${["すべて",...groups].map(g=>`<button data-fgroup="${esc(g)}" aria-pressed="${fc.group===g}">${esc(g)}</button>`).join("")}</div>
+    <div class="pills center"><span class="small muted" style="align-self:center">出すカード:</span>${[["all","今日の分"],["xu","×と△"],["x","×だけ"],["u","△だけ"],["none","未記録"]].map(([k,l])=>`<button data-flvf="${k}" aria-pressed="${fc.lvf===k}">${l}</button>`).join("")}</div>${body}
     <p class="small muted" style="text-align:center">法改正で数字が変わることがあります。受験年度のテキストでも確認してください。</p>`;
   }
   if(fc.mode==="cmp"){
@@ -1004,16 +1017,16 @@ function viewNumbers(){
   const cardsAll=allCards(); const ai=fc.ai;
   const delB=BUILTIN_CARDS.filter(c=>(S.cardov[c.id]||{}).del);
   const table=groups.map(g=>{ const cs=cardsAll.filter(c=>c.g===g);
-    return `<tr class="grp"><td colspan="5"><div class="grpin"><b>グループ</b><input type="text" class="gname" data-gren="${esc(g)}" value="${esc(g)}"><span class="muted small">${cs.length}枚</span></div></td></tr>`+
-    cs.map(c=>`<tr><td class="memo"><input type="text" data-cf="${c.id}|q" value="${esc(c.q)}"></td><td class="memo"><input type="text" data-cf="${c.id}|a" value="${esc(c.a)}"></td><td class="memo"><input type="text" data-cf="${c.id}|note" value="${esc(c.note||"")}"></td>
+    return `<tr class="grp"><td colspan="6"><div class="grpin"><b>グループ</b><input type="text" class="gname" data-gren="${esc(g)}" value="${esc(g)}"><span class="muted small">${cs.length}枚</span></div></td></tr>`+
+    cs.map(c=>`<tr><td class="gcell lvcell"><select class="rsel r-${cardLv(c.id)||"n"}" data-clv="${c.id}" title="${S.cards[c.id]&&S.cards[c.id].ld?"最後に記録:"+md(S.cards[c.id].ld):"暗記レベル"}">${RSEL.map(([v,l])=>`<option value="${v}" ${cardLv(c.id)===v?"selected":""}>${l}</option>`).join("")}</select></td><td class="memo"><input type="text" data-cf="${c.id}|q" value="${esc(c.q)}"></td><td class="memo"><input type="text" data-cf="${c.id}|a" value="${esc(c.a)}"></td><td class="memo"><input type="text" data-cf="${c.id}|note" value="${esc(c.note||"")}"></td>
       <td class="memo"><select data-cf="${c.id}|g" class="tsel">${groups.map(x=>`<option ${x===c.g?"selected":""}>${esc(x)}</option>`).join("")}</select></td>
       <td class="small">${c.edited?`<button class="btn ghost small" data-crestore="${c.id}" title="最初の内容に戻す">戻す</button>`:""}${c.src==="ai"?`<span class="chip ai">AI</span>`:c.src==="me"?`<span class="chip ai">自作</span>`:""}<button class="btn ghost small" data-cdel="${c.id}">${fc.del===c.id?"本当に削除":"削除"}</button></td></tr>`).join("")+
-    `<tr><td colspan="5"><button class="btn ghost small" data-cnew="${esc(g)}">+ このグループにカードを追加</button></td></tr>`; }).join("");
+    `<tr><td colspan="6"><button class="btn ghost small" data-cnew="${esc(g)}">+ このグループにカードを追加</button></td></tr>`; }).join("");
   return `${top}
   <section class="sheet stack" style="padding-inline:14px">
     <div class="row between"><div><span class="eyebrow">Edit cards</span><h2>カードの一覧と編集</h2></div><button class="btn small" data-act="cnewgroup">+ 新しいグループ</button></div>
-    <p class="small muted" style="margin:0">最初から入っているカードも含め、すべてのマスをそのまま書き換えられます(自動で保存)。グループ名を変えると、そのグループのカード全部が移ります。</p>
-    <div class="sheetwrap"><table class="grid compact cardgrid"><thead><tr><th>項目(問い)</th><th>答え</th><th>補足</th><th>グループ</th><th></th></tr></thead><tbody>${table}</tbody></table></div>
+    <p class="small muted" style="margin:0">最初から入っているカードも含め、すべてのマスをそのまま書き換えられます(自動で保存)。左端の「暗記」で ◎○△× を直接記録できます。グループ名を変えると、そのグループのカード全部が移ります。</p>
+    <div class="sheetwrap"><table class="grid compact cardgrid"><thead><tr><th>暗記</th><th>項目(問い)</th><th>答え</th><th>補足</th><th>グループ</th><th></th></tr></thead><tbody>${table}</tbody></table></div>
     ${delB.length?`<p class="small muted" style="margin:0">削除した最初のカード ${delB.length}枚 <button class="btn ghost small" data-act="crestoreall">すべて元に戻す</button></p>`:""}
   </section>
   <section class="sheet stack">
@@ -1028,11 +1041,19 @@ function viewNumbers(){
   </section>
 `;
 }
-function gradeCard(ok){
+function setCardLv(id,lv){
+  const st=S.cards[id]||null, t=today();
+  if(!lv){ if(st){ delete st.lv; delete st.ld; } mark("cards"); return; }
+  const b0=st?st.b:0;
+  const b=lv==="s"?Math.min(Math.max(b0+2,3),5):lv==="o"?Math.min(Math.max(b0+1,2),5):lv==="u"?Math.max(Math.min(b0,2),1):0;
+  const days=lv==="x"?1:lv==="u"?2:INT[b];
+  const h=((st&&st.h)||[]).filter(x=>x[0]!==t).concat([[t,lv]]).slice(-30);
+  S.cards[id]={b,d:addDays(t,days),lv,ld:t,h};
+  mark("cards");
+}
+function gradeCard(lv){
   const c=fc.cur; if(!c) return;
-  const st=S.cards[c.id];
-  const b=ok?Math.min(st?st.b+1:2,5):0;
-  S.cards[c.id]={b,d:addDays(today(),ok?INT[b]:1)};
+  setCardLv(c.id,lv);
   fc.seen.add(c.id); mark("cards");
   fc.cur=nextCard(); fc.shown=false; render();
 }
@@ -2034,7 +2055,8 @@ document.addEventListener("click",e=>{
   if(d.fmode){ fc.mode=d.fmode; render(); return; }
   if(d.fgroup){ fc.group=d.fgroup; fc.cur=null; render(); return; }
   if(d.act==="fshow"){ fc.shown=true; render(); return; }
-  if(d.fgrade){ gradeCard(d.fgrade==="ok"); return; }
+  if(d.fgrade){ gradeCard(d.fgrade); return; }
+  if(d.flvf){ fc.lvf=d.flvf; fc.seen.clear(); fc.cur=null; fc.shown=false; render(); return; }
   if(d.act==="freset"){ fc.seen.clear(); fc.cur=cardPool()[0]||null; fc.shown=false; render(); return; }
   if(d.cgroup){ fc.cmp=d.cgroup; fc.rev.clear(); fc.quiz={}; fc.checked=false; render(); return; }
   if(d.reveal!==undefined){ fc.rev.add(d.reveal); render(); return; }
@@ -2130,6 +2152,7 @@ document.addEventListener("change",e=>{
   if(t.dataset.pqt!==undefined){ if(t.value!==""){ savePqt(t,t.value); } return; }
   if(t.dataset.pqtpick!==undefined){ const inp=t.closest(".tcell").querySelector("[data-pqt]"); if(inp&&t.value){ savePqt(inp,t.value); toast("論点を入れました"); } t.dataset.filled=""; return; }
   if(t.dataset.colt!==undefined){ colOn("g"); bk.cols[t.dataset.colt]=t.checked; try{ localStorage.setItem("takken-cols",JSON.stringify(bk.cols)); }catch(e){} render(); return; }
+  if(t.dataset.clv!==undefined){ setCardLv(t.dataset.clv,t.value); t.className="rsel r-"+(t.value||"n"); render(); return; }
   if(t.dataset.cf!==undefined){ const [id,f]=t.dataset.cf.split("|"); setCard(id,f,f==="g"?t.value:t.value.trim()); if(f==="g") render(); return; }
   if(t.dataset.gren!==undefined){ const old=t.dataset.gren, nw=t.value.trim(); if(!nw||nw===old) return; allCards().filter(c=>c.g===old).forEach(c=>setCard(c.id,"g",nw)); if(fc.cmp===old) fc.cmp=nw; if(fc.group===old) fc.group=nw; render(); return; }
   if(t.dataset.lgdate!==undefined){ const [od,k,ch]=t.dataset.lgdate.split("|"); const nd=t.value; if(!nd||nd===od) return;
