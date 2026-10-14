@@ -578,7 +578,22 @@ function applyTextToc(){
   });
   S.books.text.ch=cur; mark("books"); return [add,upd];
 }
-const DEFAULT_BOOKS = {text:{title:"宅建士の教科書",edition:"",kind:"text",ch:textTocList()}, drill:{title:"宅建士の論点別過去問",edition:"",kind:"drill",ch:[]}};
+const DRILL_TOC=[["gyoho", "宅建業法", 112, [["宅建業法の基本", 1], ["免許", 5], ["宅地建物取引士", 18], ["営業保証金", 25], ["保証協会", 32], ["事務所、案内所等に関する規制", 38], ["業務上の規制", 46], ["8種制限", 81], ["報酬に関する制限", 95], ["監督・罰則", 103], ["住宅瑕疵担保履行法", 111]]], ["kenri", "権利関係", 100, [["制限行為能力者", 1], ["意思表示", 5], ["代理", 10], ["時効", 16], ["債務不履行、解除", 20], ["危険負担", 24], ["弁済、相殺、債権譲渡", 25], ["売買", 30], ["物権変動", 35], ["抵当権", 40], ["連帯債務、保証、連帯債権", 47], ["賃貸借", 51], ["借地借家法(借地)", 56], ["借地借家法(借家)", 62], ["請負", 70], ["不法行為", 72], ["相続", 76], ["共有", 82], ["区分所有法", 84], ["不動産登記法", 89], ["担保物権、根抵当権、委任、相隣関係、配偶者居住権、条件", 94]]], ["hourei", "法令上の制限", 63, [["都市計画法", 1], ["建築基準法", 17], ["国土利用計画法", 34], ["農地法", 42], ["盛土規制法", 48], ["土地区画整理法", 56], ["その他の法令上の制限", 62]]], ["zei", "税・その他", 47, [["不動産に関する税金", 1], ["不動産鑑定評価基準", 16], ["地価公示法", 21], ["住宅金融支援機構法(登録講習修了者は免除)", 25], ["景品表示法(登録講習修了者は免除)", 29], ["土地・建物(登録講習修了者は免除)", 36]]]];
+function drillTocList(){ return DRILL_TOC.map(([c,title,n,secs],i)=>({id:"nch"+(i+1),c,lab:"CHAPTER"+(i+1),title,n:String(n),p1:"",p2:"",topics:[],secs:secs.map(([t],j)=>`第${i+1}章-${String(j+1).padStart(2,"0")} ${t}`)})); }
+function applyDrillToc(){
+  const cur=S.books.drill.ch||[]; let add=0, upd=0, q=0;
+  drillTocList().forEach((x,i)=>{
+    let e=cur.find(c=>c.id===x.id)||cur.find(c=>String(c.lab||"").replace(/\s/g,"").toUpperCase()===x.lab)||cur.find(c=>c.c===x.c&&c.title===x.title);
+    if(e){ const old=e.secs||[]; const ren={}; old.forEach((o,j)=>{ if(x.secs[j]&&o!==x.secs[j]) ren[o]=x.secs[j]; });
+      Object.values(S.pq[e.id]||{}).forEach(v=>{ if(v.t&&ren[v.t]) v.t=ren[v.t]; });
+      e.c=x.c; e.lab=x.lab; e.title=x.title; e.n=x.n; e.secs=x.secs; upd++; }
+    else { e=x; cur.push(e); add++; }
+    const st=DRILL_TOC[i][3];
+    st.forEach(([,a],j)=>{ const end=j+1<st.length?st[j+1][1]-1:+x.n; for(let k=a;k<=end;k++){ pqOf(e.id,String(k),true).t=x.secs[j]; q++; } });
+  });
+  S.books.drill.ch=cur; sortCh("drill"); mark("books"); mark("pq"); return [add,upd,q];
+}
+const DEFAULT_BOOKS = {text:{title:"宅建士の教科書",edition:"",kind:"text",ch:textTocList()}, drill:{title:"宅建士の論点別過去問",edition:"",kind:"drill",ch:drillTocList()}};
 const S = { settings:{...DEFAULT_SETTINGS}, qs:{}, myq:{}, cards:{}, mycards:{}, mocks:{}, log:{}, books:JSON.parse(JSON.stringify(DEFAULT_BOOKS)), bidx:{}, redo:{}, blog:{}, pa:{}, pm:{}, pq:{}, cardov:{}, exams:{}, qov:{} };
 let backend="local", col=null;
 const dirty=new Set();
@@ -1401,6 +1416,7 @@ function viewBooks(){
   <section class="sheet stack">
     <div class="row between"><div><span class="eyebrow">Contents</span><h2>章の管理</h2></div>${ch.length?`<button class="btn small" data-act="bimport">${bk.showImport?"閉じる":"目次をまとめて登録"}</button>`:""}</div>
     ${addChRow(k)}
+    ${k==="drill"?`<div class="row" style="gap:8px"><button class="btn small primary" data-act="drilltoc">問題集の目次(4章・45論点・問題番号付き)を反映</button><span class="small muted">章・問題数・論点と、各問題の論点(問題番号の範囲)を目次どおりにします。解いた記録・理解度・メモはそのまま残ります。</span></div>`:""}
     ${k==="text"?`<div class="row" style="gap:8px"><button class="btn small primary" data-act="texttoc">教科書の目次(全45項目・ページ付き)を反映</button><span class="small muted">章・タイトル・開始〜終了ページを目次どおりにします。記録はそのまま残ります。</span></div>`:""}
     ${k==="text"&&chOf("drill").some(c=>(c.secs||[]).length)?`<div><button class="btn small" data-act="textfromdrill">論点別過去問と同じ章立て(${chOf("drill").reduce((a,c)=>a+(c.secs||[]).length,0)}項目)を追加</button></div>`:""}
     ${(bk.showImport||!ch.length)?importPanel(k):""}
@@ -2018,6 +2034,7 @@ document.addEventListener("click",e=>{
   if(d.act==="tocparse"){ bk.paste=$("#tocPaste").value; const r=parseToc(bk.paste); if(!r.length){ toast("読み取れる行がありませんでした"); return; } bk.preview=r; render(); return; }
   if(d.act==="tocdiscard"){ bk.preview=null; render(); return; }
   if(d.act==="tocstop"){ bk.ctl&&bk.ctl.abort(); return; }
+  if(d.act==="drilltoc"){ const [a,u,q]=applyDrillToc(); toast(`目次を反映しました(章 更新${u}・追加${a} / ${q}問に論点を設定)`); render(); return; }
   if(d.act==="texttoc"){ const [a,u]=applyTextToc(); toast(`目次を反映しました(更新${u}・追加${a})`); render(); return; }
   if(d.act==="tocsave"){ const k=bk.book; const list=bk.preview.map(x=>({id:uid("ch"),c:x.c,lab:x.lab,title:x.title,p1:x.p1,p2:"",topics:x.topics||[]}));
     fillEndPages(list); S.books[k].ch=chOf(k).concat(list); bk.preview=null; bk.paste=""; bk.showImport=false; mark("books"); toast(`${list.length}章を登録しました`); render(); return; }
