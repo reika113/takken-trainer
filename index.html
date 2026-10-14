@@ -53,7 +53,7 @@
 [hidden]{display:none!important}
 html,body{background:var(--bg);color:var(--ink)}
 body{font-family:var(--body);font-weight:400;font-size:15px;line-height:1.85;letter-spacing:.03em}
-.wrap{max-width:820px;margin:0 auto;padding-inline:20px;padding-block:8px 110px;position:relative}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:20px;padding-block:8px 110px;position:relative}
 .wrap.wide{max-width:1240px}
 h1,h2,h3{font-family:var(--display);font-weight:600;text-wrap:balance;margin:0;line-height:1.45;letter-spacing:.08em}
 h2{font-size:1.18rem}
@@ -185,7 +185,6 @@ input.dinput{width:auto;padding:2px 4px;border:0;background:transparent;font-siz
 .lgpi select{width:auto;padding:1px 4px;border-radius:8px;font-size:.8rem}
 .lgx{border:0;background:none;color:var(--sakura-deep);font-size:.9rem;padding:0 4px}
 .qedit{background:var(--bg);border-radius:14px;padding:14px!important}
-.wrap.wide #view>.section-head,.wrap.wide #view>.quota,.wrap.wide #view>.pills,.wrap.wide #view>.qcard,.wrap.wide #view>.row,.wrap.wide #view>p,.wrap.wide #view>.sheet.empty,.wrap.wide #view>#todayLog{max-width:820px;width:100%;margin-inline:auto}
 .grid.compact td:not(.memo):not(.topic):not(.gcell):not(.pgcell):not(.rcell){min-width:46px}
 .grid.compact .cb .dt{white-space:nowrap}
 .grid.compact td:has(> .cb){min-width:84px}
@@ -210,7 +209,7 @@ input.dinput{width:auto;padding:2px 4px;border:0;background:transparent;font-siz
 .grid .tiny{display:block;font-size:.58rem;color:var(--muted);letter-spacing:.04em}
 table.grid input.ninput{width:72px;padding:4px 6px;border-radius:8px;font-size:.8rem;text-align:right}
 .editbar{position:fixed;left:0;right:0;bottom:calc(58px + env(safe-area-inset-bottom,0px));z-index:15;display:flex;justify-content:center;padding:0 10px}
-.editbar .in{max-width:820px;width:100%;background:var(--sheet);border:1px solid var(--sakura);border-radius:16px;box-shadow:0 6px 24px rgba(80,40,50,.15);padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.editbar .in{max-width:1200px;width:100%;background:var(--sheet);border:1px solid var(--sakura);border-radius:16px;box-shadow:0 6px 24px rgba(80,40,50,.15);padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .editbar input{padding:5px 8px}
 .detail{grid-column:1/-1;background:var(--bg);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px;margin-top:6px}
 .chrow .lab{font-family:var(--label);font-size:.72rem;letter-spacing:.14em;color:var(--sakura-deep);text-transform:uppercase}
@@ -233,7 +232,7 @@ table.grid input.ninput{width:72px;padding:4px 6px;border-radius:8px;font-size:.
 
 /* nav */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--sheet) 94%,transparent);backdrop-filter:blur(6px);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);z-index:10}
-nav.tabs .in{display:grid;grid-template-columns:repeat(6,1fr);max-width:820px;width:100%}
+nav.tabs .in{display:grid;grid-template-columns:repeat(6,1fr);max-width:1200px;width:100%}
 nav.tabs button{background:none;border:0;padding:10px 2px 11px;font-size:.72rem;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:1px;position:relative}
 nav.tabs button .k{font-family:var(--en);font-style:italic;font-size:1rem;line-height:1.1;letter-spacing:.02em}
 nav.tabs button[aria-current="page"]{color:var(--sakura-deep)}
