@@ -1592,7 +1592,7 @@ function pageCounts(){ const cnt={}; Object.values(S.blog).forEach(v=>{ if(v.boo
 function textSheet(){
   const t=bk.date||today(); const cs=shownChapters("text");
   let maxA=0; cs.forEach(c=>maxA=Math.max(maxA,readsOf(c.id).length));
-  const cols=Math.max(3,Math.min(10,maxA+1)); const W=cols+4;
+  const cols=Math.max(3,Math.min(10,maxA+1)); const W=cols+5;
   let body="", lastCat="";
   cs.forEach(c=>{
     if(c.c!==lastCat){ lastCat=c.c; const all=chOf("text").filter(x=>x.c===c.c); const d1=all.filter(x=>readsOf(x.id).length).length;
@@ -1608,13 +1608,15 @@ function textSheet(){
       <td class="pgcell"><input type="text" inputmode="numeric" data-tp1="${c.id}" value="${esc(c.p1||"")}" placeholder="開始">–<input type="text" inputmode="numeric" data-tp2="${c.id}" value="${esc(c.p2||"")}" placeholder="終了"></td>
       ${cells}
       <td class="rcell"><select class="rsel r-${r||"n"}" data-tr="${c.id}" aria-label="理解度">${RSEL.map(([v,l])=>`<option value="${v}" ${r===v?"selected":""}>${l}</option>`).join("")}</select></td>
+      <td class="gcell ${textGoalOver(c)?"over":""}"><input type="date" data-tg="${c.id}" value="${esc(c.g||"")}" aria-label="目標日"></td>
       <td class="memo"><input type="text" data-chmemo="${c.id}" value="${esc(c.memo||"")}"></td>
     </tr>`;
   });
   return `<div class="sheetwrap fit" id="sheetwrap"><table class="grid compact">
-    <thead><tr><th class="stick">章・論点</th><th>ページ</th>${Array.from({length:cols},(_,j)=>`<th>${j+1}回目</th>`).join("")}<th>理解度</th><th style="min-width:160px">メモ</th></tr></thead>
+    <thead><tr><th class="stick">章・論点</th><th>ページ</th>${Array.from({length:cols},(_,j)=>`<th>${j+1}回目</th>`).join("")}<th>理解度</th><th>目標日</th><th style="min-width:160px">メモ</th></tr></thead>
     <tbody>${body}</tbody></table></div>`;
 }
+function textGoalOver(c){ const g=c.g; if(!g||g>today()) return false; return !readsOf(c.id).some(x=>x[1].d>=g); }
 function textFromDrill(){
   const list=[]; chOf("drill").forEach(c=>(c.secs||[]).forEach(sc=>{ const [lab,...rest]=sc.split(" "); list.push({id:uid("ch"),c:c.c,lab,title:rest.join(" "),p1:"",p2:"",topics:autoTopics(c.c,rest.join(" "))}); }));
   return list;
@@ -2200,6 +2202,7 @@ document.addEventListener("change",e=>{
   if(t.dataset.exrevadd!==undefined){ const e=S.exams[t.dataset.exrevadd]; if(!e) return; parseNums(t.value).forEach(n=>{ if(!e.rev.some(r=>r.n===n)) e.rev.push({n,done:false}); }); e.rev.sort((a,b)=>a.n-b.n); mark("exams"); render(); return; }
   if(t.dataset.tl==="ey"){ tl.ey=t.value; tl.pl=""; render(); return; }
   if(t.dataset.tl!==undefined){ tl[t.dataset.tl]=t.value; if(t.dataset.tl==="ch"){ const x=chById(t.value); if(x&&tl.book==="text"){ tl.p1=x.c.p1||""; tl.p2=x.c.p2||""; render(); } } return; }
+  if(t.dataset.tg!==undefined){ const x=chById(t.dataset.tg); if(x){ if(t.value) x.c.g=t.value; else delete x.c.g; mark("books"); const td=t.closest("td"); if(td) td.classList.toggle("over",textGoalOver(x.c)); } return; }
   if(t.dataset.pqg!==undefined){ const [ch,n]=t.dataset.pqg.split("|"); pqOf(ch,n,true).g=t.value; mark("pq"); const td=t.closest("td"); if(td) td.classList.toggle("over",goalOver(ch,n)); return; }
   if(t.dataset.pqm!==undefined){ const [ch,n]=t.dataset.pqm.split("|"); pqOf(ch,n,true).m=t.value.trim(); mark("pq"); return; }
   if(t.dataset.pqrm!==undefined){ const [ch,n]=t.dataset.pqrm.split("|"); pqOf(ch,n,true).rm=t.value.trim(); mark("pq"); return; }
