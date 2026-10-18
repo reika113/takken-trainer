@@ -125,6 +125,13 @@ td.selc{outline:2px solid var(--ink);outline-offset:-2px}
 .prow .pc{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 14px}
 .sbar i.b3{background:#8e4a5c}
 .pagemap i.l4,.legend .l4{background:#7a3d4e}
+.prow .pk em.pp{font-style:normal;font-size:.72rem;color:var(--sakura-deep);min-width:34px;text-align:right}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+@media (max-width:620px){ .kpis{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px} .kpi{padding:8px 9px} .kpi .kv{font-size:1.35rem} .kpi .kl,.kpi .ks{font-size:.64rem} }
+.kpi{border:1px solid var(--line);border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:4px;background:var(--bg)}
+.kpi .kl{font-size:.72rem;color:var(--muted);letter-spacing:.04em}.kpi .kv{font-family:var(--label);font-size:1.7rem;line-height:1.1;color:var(--ink)}.kpi .kv small{font-size:.8rem;color:var(--muted);margin-left:2px}
+.kpi .kb{height:5px;border-radius:3px;background:var(--line);overflow:hidden}.kpi .kb i{display:block;height:100%;background:var(--sakura-deep);border-radius:3px}
+.kpi .ks{font-size:.7rem;color:var(--muted)}
 .pk-pages{display:flex;gap:6px 18px;flex-wrap:wrap;color:var(--muted)}
 .prow .pk{display:flex;gap:6px;align-items:center;font-size:.72rem;color:var(--muted)}
 .prow .pk b{font-size:.74rem;color:var(--ink);font-weight:500;min-width:48px;text-align:right}
@@ -1542,12 +1549,14 @@ function drillStats(c,sec){
 }
 function roundsShown(k,maxSeen){ const extra=(bk.roundsExtra&&bk.roundsExtra[k])||0; return Math.max(2,maxSeen)+extra; }
 function roundCtl(k,maxSeen){ const n=roundsShown(k,maxSeen); return `<div class="row small" style="gap:6px"><span class="muted">表示する回数 ${n}回まで</span><button class="btn ghost small" data-rounds="${k}|1">+1回</button>${(bk.roundsExtra&&bk.roundsExtra[k])?`<button class="btn ghost small" data-rounds="${k}|-1">−1回</button>`:""}</div>`; }
+function pctOf(v,n){ return n?Math.round(v/n*100):0; }
+function kpis(items){ return `<div class="kpis">${items.map(([l,v,n,sub])=>`<div class="kpi"><span class="kl">${l}</span><span class="kv">${pctOf(v,n)}<small>%</small></span><div class="kb"><i style="width:${pctOf(v,n)}%"></i></div><span class="ks">${sub||`${v}/${n}`}</span></div>`).join("")}</div>`; }
 function progRow(label,st,extra,R,unit){
   R=R||2; unit=unit||"周目";
   const rk=st.rk||[];
   return `<div class="prow"><div class="pl">${label}</div>
-    <div class="pc">${Array.from({length:R},(_,i)=>{ const k=i+1, v=rk[k]||0; return `<div class="pk"><span>${k}${unit}</span>${bar([[v,k===1?"b1":k===2?"b2":"b3",k+unit]],st.n)}<b class="num">${v}/${st.n}</b></div>`; }).join("")}
-      ${st.s!==undefined?`<div class="pk"><span>理解度</span>${bar([[st.s,"rs","◎"],[st.o,"ro","◯"],[st.u,"ru","△"],[st.x,"rx","×"]],st.n)}<b class="num">◎◯${st.s+st.o}</b></div>`:""}</div>
+    <div class="pc">${Array.from({length:R},(_,i)=>{ const k=i+1, v=rk[k]||0; return `<div class="pk"><span>${k}${unit}</span>${bar([[v,k===1?"b1":k===2?"b2":"b3",k+unit]],st.n)}<b class="num">${v}/${st.n}</b><em class="pp">${pctOf(v,st.n)}%</em></div>`; }).join("")}
+      ${st.s!==undefined?`<div class="pk"><span>理解度</span>${bar([[st.s,"rs","◎"],[st.o,"ro","◯"],[st.u,"ru","△"],[st.x,"rx","×"]],st.n)}<b class="num">◎○${st.s+st.o}</b><em class="pp">${pctOf(st.s+st.o,st.n)}%</em></div>`:""}</div>
     ${extra||""}</div>`;
 }
 function progressPanel(k){
@@ -1559,7 +1568,8 @@ function progressPanel(k){
     const RD=roundsShown("drill",tot.rk.length-1);
     return `<section class="sheet stack">
       <div class="row between"><div><span class="eyebrow">Progress</span><h2>全体の進み具合</h2></div>
-      <div class="legend small"><span><i class="b1"></i>解いた</span><span><i class="rs"></i>◎</span><span><i class="ro"></i>◯</span><span><i class="ru"></i>△</span><span><i class="rx"></i>×</span></div></div>
+      <div class="legend small"><span><i class="b1"></i>解いた</span><span><i class="rs"></i>◎</span><span><i class="ro"></i>○</span><span><i class="ru"></i>△</span><span><i class="rx"></i>×</span></div></div>
+      ${kpis([...Array.from({length:Math.max(1,Math.min(RD,3))},(_,i)=>[`${i+1}周目 完了`,tot.rk[i+1]||0,tot.n,`${tot.rk[i+1]||0}/${tot.n}問`]),["理解度 ◎○",tot.s+tot.o,tot.n,`◎${tot.s} ○${tot.o} / ${tot.n}問`]])}
       ${roundCtl("drill",tot.rk.length-1)}
       ${progRow(`<b>全体</b><span class="muted small">${tot.n}問</span>`,tot,tot.over?`<div class="small" style="color:var(--sakura-deep)">目標日を過ぎて未実施 ${tot.over}問</div>`:"",RD)}
       ${per.map(([c,st])=>`<details class="pdet"><summary>${progRow(`${chip(c.c)}<b>${esc(c.lab)}</b><span class="muted small">${st.n}問</span>`,st,st.over?`<div class="small" style="color:var(--sakura-deep)">目標日超過 ${st.over}</div>`:"",RD)}</summary>
@@ -1579,6 +1589,7 @@ function progressPanel(k){
   const cells=P?Array.from({length:P},(_,i)=>{ const p=i+1, v=cnt[p]||0; return `<i class="${v?v>=4?"l4":v===3?"l3":v===2?"l2":"l1":""}${p%50===1?" st":""}" title="p.${p}:${v}回"></i>`; }).join(""):"";
   return `<section class="sheet stack">
     <div class="row between"><div><span class="eyebrow">Progress</span><h2>全体の進み具合</h2></div>${roundCtl("text",maxRead)}</div>
+    ${(()=>{ const st=stOf(ch); const done=ch.filter(c=>c.r==="s"||c.r==="o").length; return kpis([...Array.from({length:Math.max(1,Math.min(RT,3))},(_,i)=>[`${i+1}回目 読了`,st.rk[i+1]||0,ch.length,`${st.rk[i+1]||0}/${ch.length}章`]),...(P?[["ページ 1回以上",read1,P,`${read1}/${P}ページ`]]:[]),["理解度 ◎○",done,ch.length,`${done}/${ch.length}章`]]); })()}
     ${per}
     ${P?`<div class="pk-pages small">${pagesK.map((v,i)=>`<span>${i+1}回以上読んだページ <b class="num">${v}</b>/${P}(${Math.round(v/P*100)}%)</span>`).join("")}</div>`:""}
     ${P?`<div class="pagemap" aria-label="ページごとの読んだ回数">${cells}</div><div class="legend small"><span><i></i>未読</span><span><i class="l1"></i>1回</span><span><i class="l2"></i>2回</span><span><i class="l3"></i>3回</span><span><i class="l4"></i>4回以上</span><span class="muted">1マス=1ページ。各行50ページ</span></div>`
